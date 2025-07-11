@@ -1,0 +1,79 @@
+{
+  "name": "Crop Vision Guide - AI Disease Detection",
+  "short_name": "Crop Vision",
+  "description": "AI-powered crop disease detection for smallholder farmers",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0fdf4",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["agriculture", "health", "education"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/placeholder.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "Crop Vision Guide - Desktop View"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "Crop Vision Guide - Mobile View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Scan",
+      "short_name": "Scan",
+      "description": "Start a new crop disease scan",
+      "url": "/camera",
+      "icons": [
+        {
+          "src": "/placeholder.svg",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "View History",
+      "short_name": "History",
+      "description": "View previous scan results",
+      "url": "/history",
+      "icons": [
+        {
+          "src": "/placeholder.svg",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
+} 

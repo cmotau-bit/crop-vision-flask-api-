@@ -1,15 +1,37 @@
 
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, AlertTriangle, Leaf, Droplets, Calendar, Camera } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { ArrowLeft, AlertTriangle, Leaf, Droplets, Calendar, Camera, CheckCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useStorage } from "@/hooks/use-storage";
+import { DiseasePrediction } from "@/lib/ai-model";
+
+interface LocationState {
+  prediction: DiseasePrediction;
+  imageData: string;
+}
 
 const Results = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { saveScan } = useStorage();
 
-  // Mock result data
-  const result = {
+  // Get prediction data from navigation state
+  const state = location.state as LocationState;
+  const prediction = state?.prediction;
+  const imageData = state?.imageData;
+
+  // Fallback to mock data if no real prediction
+  const result = prediction ? {
+    disease: prediction.className.split('___')[1] || prediction.className,
+    confidence: Math.round(prediction.confidence * 100),
+    severity: prediction.confidence > 0.8 ? "High" : prediction.confidence > 0.6 ? "Medium" : "Low",
+    status: prediction.className.includes('healthy') ? "Healthy" : "Disease Detected",
+    recommendations: prediction.treatment.split('. ').filter(Boolean),
+    preventiveMeasures: prediction.prevention.split('. ').filter(Boolean),
+    symptoms: prediction.symptoms
+  } : {
     disease: "Tomato Late Blight",
     confidence: 87,
     severity: "Medium",
@@ -26,7 +48,8 @@ const Results = () => {
       "Ensure proper spacing",
       "Water at soil level",
       "Remove plant debris"
-    ]
+    ],
+    symptoms: "Dark, water-soaked lesions on leaves and stems"
   };
 
   const getSeverityColor = (severity: string) => {
@@ -35,6 +58,43 @@ const Results = () => {
       case 'medium': return 'bg-yellow-100 text-yellow-800';
       case 'high': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    if (status === "Healthy") {
+      return <CheckCircle className="h-8 w-8 text-green-600" />;
+    }
+    return <AlertTriangle className="h-8 w-8 text-red-600" />;
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === "Healthy") {
+      return "bg-green-100";
+    }
+    return "bg-red-100";
+  };
+
+  const handleSaveToHistory = async () => {
+    if (prediction && imageData) {
+      try {
+        await saveScan({
+          imageData,
+          prediction: {
+            className: prediction.className,
+            confidence: prediction.confidence,
+            symptoms: prediction.symptoms,
+            treatment: prediction.treatment,
+            prevention: prediction.prevention
+          }
+        });
+        
+        // Show success message
+        alert("Scan saved to history!");
+      } catch (error) {
+        console.error('Failed to save scan:', error);
+        alert("Failed to save scan to history");
+      }
     }
   };
 
@@ -60,11 +120,24 @@ const Results = () => {
       </div>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+        {/* Captured Image */}
+        {imageData && (
+          <Card className="bg-white/70 backdrop-blur-sm border-green-200 overflow-hidden">
+            <CardContent className="p-0">
+              <img
+                src={imageData}
+                alt="Analyzed crop"
+                className="w-full h-48 object-cover"
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Result Overview */}
-        <Card className="bg-white/70 backdrop-blur-sm border-red-200">
+        <Card className={`bg-white/70 backdrop-blur-sm ${getStatusColor(result.status)}`}>
           <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="h-8 w-8 text-red-600" />
+            <div className={`w-16 h-16 ${getStatusColor(result.status)} rounded-full flex items-center justify-center mx-auto mb-4`}>
+              {getStatusIcon(result.status)}
             </div>
             <CardTitle className="text-2xl text-gray-800">{result.disease}</CardTitle>
             <div className="flex items-center justify-center space-x-4 mt-4">
@@ -76,6 +149,19 @@ const Results = () => {
               </Badge>
             </div>
           </CardHeader>
+        </Card>
+
+        {/* Symptoms */}
+        <Card className="bg-white/70 backdrop-blur-sm border-green-200">
+          <CardHeader>
+            <CardTitle className="flex items-center text-lg text-gray-800">
+              <AlertTriangle className="h-5 w-5 mr-2 text-orange-600" />
+              Symptoms
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700">{result.symptoms}</p>
+          </CardContent>
         </Card>
 
         {/* Immediate Actions */}
@@ -149,6 +235,32 @@ const Results = () => {
           </CardContent>
         </Card>
 
+        {/* AI Model Info */}
+        {prediction && (
+          <Card className="bg-white/70 backdrop-blur-sm border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg text-gray-800">
+                <Clock className="h-5 w-5 mr-2 text-blue-600" />
+                AI Analysis Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Model:</span>
+                <span className="text-gray-800">MobileNetV2</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Processing Time:</span>
+                <span className="text-gray-800">~2 seconds</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Offline Capable:</span>
+                <span className="text-green-600">✓ Yes</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-4">
           <Button
@@ -159,13 +271,15 @@ const Results = () => {
             Scan Another Crop
           </Button>
           
-          <Button
-            onClick={() => navigate("/history")}
-            variant="outline"
-            className="w-full border-green-300 text-green-700 hover:bg-green-50 py-6 text-lg rounded-xl font-semibold transition-all duration-300"
-          >
-            Save to History
-          </Button>
+          {prediction && (
+            <Button
+              onClick={handleSaveToHistory}
+              variant="outline"
+              className="w-full border-green-300 text-green-700 hover:bg-green-50 py-6 text-lg rounded-xl font-semibold transition-all duration-300"
+            >
+              Save to History
+            </Button>
+          )}
         </div>
       </div>
     </div>

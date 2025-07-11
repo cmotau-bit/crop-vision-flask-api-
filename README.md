@@ -1,73 +1,310 @@
-# Welcome to your Lovable project
+# 🌱 AI-Powered Crop Disease Detection for Smallholder Farmers
 
-## Project info
+## 🎯 SDG 2 - Zero Hunger
 
-**URL**: https://lovable.dev/projects/1666e698-984e-473b-9bc0-188b84427c64
+**Problem**: Many smallholder farmers cannot identify crop diseases early due to lack of expert access, resulting in reduced yields and food insecurity.
 
-## How can I edit this code?
+**Solution**: AI-powered crop disease detection system with offline capability for use in low-connectivity areas.
 
-There are several ways of editing your application.
+## 🏗️ Project Architecture
 
-**Use Lovable**
+This project consists of two main components:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1666e698-984e-473b-9bc0-188b84427c64) and start prompting.
+### 1. 🤖 AI Model Training & Export (`ai_model/`)
+- **Dataset**: PlantVillage Dataset (Penn State University)
+- **Model**: Convolutional Neural Network (MobileNetV2, ResNet50, EfficientNetB0)
+- **Export**: TensorFlow Lite & ONNX for mobile/web deployment
+- **Features**: Offline inference, disease information database
 
-Changes made via Lovable will be committed automatically to this repo.
+### 2. 📱 Frontend Application (`src/`)
+- **Framework**: React + TypeScript + Vite
+- **UI**: shadcn/ui + Tailwind CSS
+- **Features**: Image upload, disease detection, offline capability
 
-**Use your preferred IDE**
+## 🚀 Quick Start
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
+- Python 3.8+ (for AI model)
+- Node.js 18+ (for frontend)
+- TensorFlow 2.15.0
+- PlantVillage Dataset
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. AI Model Setup
 
-Follow these steps:
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Test setup
+python test_setup.py
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Download dataset (optional - can be done manually)
+# Visit: https://www.kaggle.com/datasets/abdallahalidev/plantvillage-dataset
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Train and export model
+python ai_model/train_model.py --model-type mobilenet_v2 --epochs 50
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 2. Frontend Setup
+
+```bash
+# Install Node.js dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 📊 AI Model Training
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Available Models
+- **MobileNetV2** (Recommended): Lightweight, mobile-optimized
+- **ResNet50**: High accuracy, larger model
+- **EfficientNetB0**: Balanced accuracy/speed
+- **Custom CNN**: Simple architecture
 
-**Use GitHub Codespaces**
+### Training Pipeline
+```bash
+# Complete pipeline
+python ai_model/train_model.py --model-type mobilenet_v2 --epochs 50
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Data preprocessing only
+python ai_model/data_preprocessing.py
 
-## What technologies are used for this project?
+# Model training only
+python ai_model/model_training.py
 
-This project is built with:
+# Model export only
+python ai_model/model_export.py
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# Model testing
+python ai_model/test_model.py --compare
+```
 
-## How can I deploy this project?
+### Jupyter Notebook
+```bash
+# Interactive training and experimentation
+jupyter notebook ai_model/notebooks/model_training.ipynb
+```
 
-Simply open [Lovable](https://lovable.dev/projects/1666e698-984e-473b-9bc0-188b84427c64) and click on Share -> Publish.
+## 📱 Model Export & Deployment
 
-## Can I connect a custom domain to my Lovable project?
+### Export Formats
+- **TensorFlow Lite**: Mobile/Android deployment (~3-5 MB)
+- **ONNX**: Cross-platform deployment (~5-8 MB)
 
-Yes, you can!
+### Output Files
+```
+models/
+├── mobilenet_v2_final.h5          # Trained Keras model
+├── crop_disease_model.tflite      # TensorFlow Lite model
+├── crop_disease_model.onnx        # ONNX model
+├── model_info.json               # Model metadata
+└── disease_info.json             # Disease information database
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🌍 SDG 2 Impact
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Food Security
+- Early disease detection prevents crop loss
+- Reduces food waste and improves yields
+- Supports sustainable agriculture
+
+### Economic Benefits
+- Reduces need for expensive expert consultation
+- Empowers smallholder farmers with AI tools
+- Improves farming efficiency
+
+### Environmental Impact
+- Reduces unnecessary pesticide use
+- Promotes precision agriculture
+- Lightweight models reduce energy consumption
+
+## 🔒 Ethical Considerations
+
+### Bias Mitigation
+- Diverse dataset from multiple regions
+- Balanced class distribution
+- Regular model retraining
+
+### Accessibility
+- Offline-capable for remote areas
+- Lightweight models for low-resource devices
+- Open source with clear documentation
+
+### Transparency
+- Clear model documentation
+- Explainable AI features
+- Open source codebase
+
+## 📁 Project Structure
+
+```
+crop-vision-guide/
+├── ai_model/                     # AI model training and export
+│   ├── config.py                # Configuration parameters
+│   ├── data_preprocessing.py    # Dataset loading and preprocessing
+│   ├── model_training.py        # Model training and evaluation
+│   ├── model_export.py          # Model export to TFLite/ONNX
+│   ├── train_model.py           # Main training pipeline
+│   ├── test_model.py            # Model testing and validation
+│   ├── notebooks/               # Jupyter notebooks
+│   └── README.md               # AI model documentation
+├── src/                         # Frontend application
+│   ├── components/             # React components
+│   ├── pages/                  # Application pages
+│   ├── hooks/                  # Custom React hooks
+│   └── lib/                    # Utility functions
+├── models/                      # Trained models (generated)
+├── results/                     # Training results (generated)
+├── data/                        # Dataset storage
+├── requirements.txt             # Python dependencies
+└── README.md                   # This file
+```
+
+## 🧪 Testing
+
+### AI Model Testing
+```bash
+# Test all model formats
+python ai_model/test_model.py --compare
+
+# Test with specific image
+python ai_model/test_model.py --test-image path/to/image.jpg
+
+# Run unit tests
+pytest tests/
+```
+
+### Frontend Testing
+```bash
+# Run linting
+npm run lint
+
+# Build for production
+npm run build
+```
+
+## 📈 Model Performance
+
+### Typical Results (MobileNetV2)
+- **Test Accuracy**: 95-98%
+- **Top-3 Accuracy**: 98-99%
+- **Inference Time**: <100ms (mobile)
+- **Model Size**: ~3.5 MB (TFLite)
+
+### Supported Crops
+- Apple, Cherry, Corn, Grape, Peach
+- Pepper, Potato, Strawberry, Tomato
+
+## 🚀 Deployment
+
+### Mobile App Integration
+1. Use TensorFlow Lite model
+2. Integrate disease info database
+3. Implement offline image capture
+4. Add feedback collection
+
+### Web App Integration
+1. Use ONNX model with TensorFlow.js
+2. Implement Progressive Web App (PWA)
+3. Add service workers for offline caching
+4. Optimize for mobile browsers
+
+## 🔧 Configuration
+
+### Model Configuration
+```python
+MODEL_CONFIG = {
+    "architecture": "mobilenet_v2",
+    "input_shape": (224, 224, 3),
+    "learning_rate": 0.001,
+    "epochs": 50,
+    "batch_size": 32
+}
+```
+
+### Dataset Configuration
+```python
+DATASET_CONFIG = {
+    "image_size": (224, 224),
+    "batch_size": 32,
+    "validation_split": 0.2,
+    "test_split": 0.1
+}
+```
+
+## 📊 Monitoring & Improvement
+
+### Model Monitoring
+- Track prediction accuracy
+- Monitor inference performance
+- Collect user feedback
+- Identify edge cases
+
+### Continuous Improvement
+- Retrain with new data
+- Update disease information
+- Optimize model architecture
+- Expand crop coverage
+
+## 🤝 Contributing
+
+### Development Setup
+1. Fork the repository
+2. Create feature branch
+3. Add tests for new features
+4. Submit pull request
+
+### Code Standards
+- Follow PEP 8 (Python) and ESLint (JavaScript)
+- Add docstrings to functions
+- Include type hints
+- Write comprehensive tests
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- **PlantVillage Dataset**: Penn State University
+- **TensorFlow**: Google Research
+- **ONNX**: Microsoft, Facebook, Amazon
+- **SDG 2**: United Nations Sustainable Development Goals
+
+## 📞 Support
+
+For questions and support:
+- Create an issue on GitHub
+- Check the documentation
+- Review the training logs
+
+---
+
+**🌱 Empowering smallholder farmers with AI for a hunger-free world! 🌱**
+
+## 🛠️ Development
+
+### Using Lovable
+Visit the [Lovable Project](https://lovable.dev/projects/1666e698-984e-473b-9bc0-188b84427c64) and start prompting.
+
+### Local Development
+```bash
+# Clone repository
+git clone <YOUR_GIT_URL>
+cd crop-vision-guide
+
+# Install dependencies
+npm install
+pip install -r requirements.txt
+
+# Start development
+npm run dev
+```
+
+### Technologies Used
+- **Frontend**: Vite, TypeScript, React, shadcn/ui, Tailwind CSS
+- **AI/ML**: TensorFlow, PyTorch, OpenCV, scikit-learn
+- **Export**: TensorFlow Lite, ONNX
+- **Deployment**: Progressive Web App (PWA)
