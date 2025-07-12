@@ -1,234 +1,278 @@
-// Service Worker for Crop Vision Guide PWA
-const CACHE_NAME = 'crop-vision-v1';
-const STATIC_CACHE = 'crop-vision-static-v1';
-const DYNAMIC_CACHE = 'crop-vision-dynamic-v1';
+/**
+ * Service Worker for CropCare AI PWA
+ * 
+ * Handles:
+ * - Offline caching of app resources
+ * - Model file caching for offline inference
+ * - Background sync for user feedback
+ * - Push notifications for disease alerts
+ */
+
+const CACHE_NAME = 'cropcare-v1.0.0';
+const MODEL_CACHE_NAME = 'cropcare-models-v1.0.0';
 
 // Files to cache for offline functionality
-const STATIC_FILES = [
+const STATIC_CACHE_FILES = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.ico',
-  '/placeholder.svg'
+  '/src/main.tsx',
+  '/src/App.tsx',
+  '/src/index.css',
+  '/src/App.css',
+  '/src/lib/ai-model.ts',
+  '/src/lib/offline-storage.ts',
+  '/src/lib/utils.ts',
+  '/src/pages/Camera.tsx',
+  '/src/pages/Results.tsx',
+  '/src/pages/History.tsx',
+  '/src/pages/Index.tsx',
+  '/src/components/ui/button.tsx',
+  '/src/components/ui/card.tsx',
+  '/src/components/ui/badge.tsx',
+  '/src/hooks/use-camera.ts',
+  '/src/hooks/use-storage.ts',
+  '/models/disease_info_complete.json',
+  '/models/model_metadata_demo.json',
+  '/placeholder.svg',
+  '/favicon.ico'
+];
+
+// Model files to cache
+const MODEL_FILES = [
+  '/models/crop_disease_model.tflite',
+  '/models/model_metadata_offline.json',
+  '/models/disease_info_complete.json'
+];
+
+// API endpoints to cache
+const API_CACHE_PATTERNS = [
+  /\/api\/predictions/,
+  /\/api\/feedback/,
+  /\/api\/diseases/
 ];
 
 // Install event - cache static files
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  console.log('🔄 Service Worker installing...');
   
   event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
-        console.log('Service Worker: Caching static files');
-        return cache.addAll(STATIC_FILES);
+    Promise.all([
+      // Cache static files
+      caches.open(CACHE_NAME).then((cache) => {
+        console.log('📦 Caching static files...');
+        return cache.addAll(STATIC_CACHE_FILES);
+      }),
+      
+      // Cache model files
+      caches.open(MODEL_CACHE_NAME).then((cache) => {
+        console.log('🤖 Caching model files...');
+        return cache.addAll(MODEL_FILES);
       })
-      .then(() => {
-        console.log('Service Worker: Static files cached');
-        return self.skipWaiting();
-      })
+    ]).then(() => {
+      console.log('✅ Service Worker installed successfully');
+      return self.skipWaiting();
+    }).catch((error) => {
+      console.error('❌ Service Worker installation failed:', error);
+    })
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
+  console.log('🚀 Service Worker activating...');
   
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-              console.log('Service Worker: Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => {
-        console.log('Service Worker: Activated');
-        return self.clients.claim();
-      })
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME && cacheName !== MODEL_CACHE_NAME) {
+            console.log('🗑️ Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+      console.log('✅ Service Worker activated');
+      return self.clients.claim();
+    })
   );
 });
 
-// Fetch event - serve from cache or network
+// Fetch event - handle offline requests
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-
+  
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
   }
-
+  
   // Handle different types of requests
-  if (url.pathname === '/' || url.pathname === '/index.html') {
-    // Handle main page
-    event.respondWith(handleMainPage(request));
-  } else if (url.pathname.startsWith('/api/')) {
-    // Handle API requests
+  if (isStaticFile(url.pathname)) {
+    event.respondWith(handleStaticFile(request));
+  } else if (isModelFile(url.pathname)) {
+    event.respondWith(handleModelFile(request));
+  } else if (isApiRequest(url.pathname)) {
     event.respondWith(handleApiRequest(request));
-  } else if (isStaticAsset(url.pathname)) {
-    // Handle static assets
-    event.respondWith(handleStaticAsset(request));
   } else {
-    // Handle other requests
-    event.respondWith(handleOtherRequest(request));
+    event.respondWith(handleDefault(request));
   }
 });
 
-// Handle main page requests
-async function handleMainPage(request) {
+// Handle static file requests
+async function handleStaticFile(request) {
   try {
-    // Try network first
+    // Try network first, fallback to cache
     const networkResponse = await fetch(request);
     
     if (networkResponse.ok) {
-      // Cache the response
-      const cache = await caches.open(DYNAMIC_CACHE);
+      // Cache the response for future offline use
+      const cache = await caches.open(CACHE_NAME);
       cache.put(request, networkResponse.clone());
       return networkResponse;
     }
   } catch (error) {
-    console.log('Network failed for main page, trying cache');
+    console.log('🌐 Network failed, trying cache...');
   }
-
+  
   // Fallback to cache
   const cachedResponse = await caches.match(request);
   if (cachedResponse) {
     return cachedResponse;
   }
-
-  // Fallback to static cache
+  
+  // Return offline page if available
   return caches.match('/index.html');
 }
 
-// Handle API requests
-async function handleApiRequest(request) {
+// Handle model file requests
+async function handleModelFile(request) {
   try {
-    // Try network first for API requests
-    const response = await fetch(request);
-    
-    if (response.ok) {
-      // Cache successful API responses
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, response.clone());
-    }
-    
-    return response;
-  } catch (error) {
-    console.log('API request failed:', error);
-    
-    // Return offline response for API requests
-    return new Response(
-      JSON.stringify({ 
-        error: 'Offline mode - API not available',
-        message: 'Please check your internet connection'
-      }),
-      {
-        status: 503,
-        statusText: 'Service Unavailable',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-  }
-}
-
-// Handle static assets
-async function handleStaticAsset(request) {
-  // Try cache first for static assets
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
-  try {
-    // Try network
-    const response = await fetch(request);
-    
-    if (response.ok) {
-      // Cache the response
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, response.clone());
-    }
-    
-    return response;
-  } catch (error) {
-    console.log('Static asset not found:', request.url);
-    
-    // Return placeholder for missing images
-    if (request.url.match(/\.(jpg|jpeg|png|gif|svg)$/)) {
-      return caches.match('/placeholder.svg');
-    }
-    
-    throw error;
-  }
-}
-
-// Handle other requests
-async function handleOtherRequest(request) {
-  try {
-    // Try network first
-    const response = await fetch(request);
-    
-    if (response.ok) {
-      // Cache successful responses
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, response.clone());
-    }
-    
-    return response;
-  } catch (error) {
-    console.log('Request failed, trying cache:', request.url);
-    
-    // Try cache
+    // Try cache first for model files (they don't change often)
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
     
-    // Return offline page
-    return caches.match('/index.html');
+    // If not in cache, try network
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      // Cache the model file
+      const cache = await caches.open(MODEL_CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+      return networkResponse;
+    }
+  } catch (error) {
+    console.log('🤖 Model file not available offline');
+  }
+  
+  // Return a placeholder response
+  return new Response('Model not available offline', {
+    status: 404,
+    statusText: 'Model not available'
+  });
+}
+
+// Handle API requests
+async function handleApiRequest(request) {
+  try {
+    // Try network first
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse.ok) {
+      // Cache successful API responses
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+      return networkResponse;
+    }
+  } catch (error) {
+    console.log('🌐 API request failed, checking cache...');
+  }
+  
+  // Fallback to cached response
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+  
+  // Return offline response
+  return new Response(JSON.stringify({
+    error: 'Offline mode',
+    message: 'API not available offline'
+  }), {
+    status: 503,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+}
+
+// Handle default requests
+async function handleDefault(request) {
+  try {
+    const networkResponse = await fetch(request);
+    return networkResponse;
+  } catch (error) {
+    // Return offline page for navigation requests
+    if (request.destination === 'document') {
+      return caches.match('/index.html');
+    }
+    
+    return new Response('Not available offline', {
+      status: 503,
+      statusText: 'Service Unavailable'
+    });
   }
 }
 
-// Check if URL is a static asset
-function isStaticAsset(pathname) {
-  return pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/);
-}
-
-// Background sync for offline actions
+// Background sync for user feedback
 self.addEventListener('sync', (event) => {
-  console.log('Background sync triggered:', event.tag);
-  
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
+  if (event.tag === 'background-sync-feedback') {
+    console.log('🔄 Background sync triggered for feedback');
+    event.waitUntil(syncUserFeedback());
   }
 });
 
-// Handle background sync
-async function doBackgroundSync() {
+// Sync user feedback when online
+async function syncUserFeedback() {
   try {
-    // Perform any background tasks here
-    console.log('Performing background sync...');
+    // Get stored feedback from IndexedDB
+    const feedback = await getStoredFeedback();
     
-    // Example: Sync offline data when connection is restored
-    // This could include uploading cached scan results
+    if (feedback.length === 0) {
+      console.log('📤 No feedback to sync');
+      return;
+    }
     
+    // Send feedback to server
+    const response = await fetch('/api/feedback/batch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ feedback })
+    });
+    
+    if (response.ok) {
+      console.log('✅ Feedback synced successfully');
+      // Clear synced feedback
+      await clearSyncedFeedback();
+    } else {
+      console.error('❌ Feedback sync failed');
+    }
   } catch (error) {
-    console.error('Background sync failed:', error);
+    console.error('❌ Background sync failed:', error);
   }
 }
 
 // Push notification handling
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
+  console.log('📱 Push notification received');
   
   const options = {
-    body: event.data ? event.data.text() : 'New crop analysis available',
+    body: event.data ? event.data.text() : 'New crop disease alert!',
     icon: '/placeholder.svg',
     badge: '/placeholder.svg',
     vibrate: [100, 50, 100],
@@ -239,7 +283,7 @@ self.addEventListener('push', (event) => {
     actions: [
       {
         action: 'explore',
-        title: 'View Results',
+        title: 'View Details',
         icon: '/placeholder.svg'
       },
       {
@@ -249,45 +293,118 @@ self.addEventListener('push', (event) => {
       }
     ]
   };
-
+  
   event.waitUntil(
-    self.registration.showNotification('Crop Vision Guide', options)
+    self.registration.showNotification('CropCare AI Alert', options)
   );
 });
 
 // Notification click handling
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
+  console.log('👆 Notification clicked:', event.action);
   
   event.notification.close();
-
+  
   if (event.action === 'explore') {
-    // Open the app to view results
-    event.waitUntil(
-      clients.openWindow('/results')
-    );
-  } else if (event.action === 'close') {
-    // Just close the notification
-    event.notification.close();
-  } else {
-    // Default action - open the app
+    // Open the app
     event.waitUntil(
       clients.openWindow('/')
     );
   }
 });
 
+// Helper functions
+function isStaticFile(pathname) {
+  return STATIC_CACHE_FILES.some(file => pathname === file) ||
+         pathname.startsWith('/src/') ||
+         pathname.startsWith('/components/') ||
+         pathname.endsWith('.css') ||
+         pathname.endsWith('.js') ||
+         pathname.endsWith('.tsx') ||
+         pathname.endsWith('.ts');
+}
+
+function isModelFile(pathname) {
+  return MODEL_FILES.some(file => pathname === file) ||
+         pathname.startsWith('/models/') ||
+         pathname.endsWith('.tflite') ||
+         pathname.endsWith('.json');
+}
+
+function isApiRequest(pathname) {
+  return API_CACHE_PATTERNS.some(pattern => pattern.test(pathname)) ||
+         pathname.startsWith('/api/');
+}
+
+// IndexedDB operations for feedback sync
+async function getStoredFeedback() {
+  // This would interact with the offline storage system
+  // For now, return empty array
+  return [];
+}
+
+async function clearSyncedFeedback() {
+  // This would clear synced feedback from IndexedDB
+  console.log('🗑️ Cleared synced feedback');
+}
+
 // Message handling for communication with main thread
 self.addEventListener('message', (event) => {
-  console.log('Service Worker received message:', event.data);
+  const { type, data } = event.data;
   
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  if (event.data && event.data.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: CACHE_NAME });
+  switch (type) {
+    case 'SKIP_WAITING':
+      self.skipWaiting();
+      break;
+      
+    case 'GET_CACHE_STATUS':
+      event.ports[0].postMessage({
+        staticCache: STATIC_CACHE_FILES.length,
+        modelCache: MODEL_FILES.length
+      });
+      break;
+      
+    case 'CLEAR_CACHE':
+      clearAllCaches().then(() => {
+        event.ports[0].postMessage({ success: true });
+      });
+      break;
+      
+    default:
+      console.log('📨 Unknown message type:', type);
   }
 });
 
-console.log('Service Worker: Loaded'); 
+// Clear all caches
+async function clearAllCaches() {
+  const cacheNames = await caches.keys();
+  await Promise.all(
+    cacheNames.map(cacheName => caches.delete(cacheName))
+  );
+  console.log('🗑️ All caches cleared');
+}
+
+// Periodic cache cleanup
+setInterval(async () => {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const requests = await cache.keys();
+    
+    // Remove old entries (older than 7 days)
+    const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    
+    for (const request of requests) {
+      const response = await cache.match(request);
+      if (response) {
+        const date = response.headers.get('date');
+        if (date && new Date(date).getTime() < weekAgo) {
+          await cache.delete(request);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Cache cleanup failed:', error);
+  }
+}, 24 * 60 * 60 * 1000); // Run daily
+
+console.log('🤖 CropCare AI Service Worker loaded'); 

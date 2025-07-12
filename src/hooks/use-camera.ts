@@ -14,6 +14,8 @@ export interface CameraActions {
   captureImage: () => Promise<string | null>;
   uploadImage: (file: File) => Promise<string>;
   resetCamera: () => void;
+  videoRef: React.RefObject<HTMLVideoElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
 export const useCamera = (): CameraState & CameraActions => {

@@ -28,28 +28,29 @@ const Results = () => {
     confidence: Math.round(prediction.confidence * 100),
     severity: prediction.confidence > 0.8 ? "High" : prediction.confidence > 0.6 ? "Medium" : "Low",
     status: prediction.className.includes('healthy') ? "Healthy" : "Disease Detected",
-    recommendations: prediction.treatment.split('. ').filter(Boolean),
-    preventiveMeasures: prediction.prevention.split('. ').filter(Boolean),
-    symptoms: prediction.symptoms
+    recommendations: prediction.treatment ? prediction.treatment.split('. ').filter(Boolean) : ["Treatment information not available"],
+    preventiveMeasures: prediction.prevention ? prediction.prevention.split('. ').filter(Boolean) : ["Prevention information not available"],
+    symptoms: prediction.symptoms || "Symptoms information not available"
   } : {
     disease: "Tomato Late Blight",
     confidence: 87,
     severity: "Medium",
     status: "Disease Detected",
     recommendations: [
-      "Remove affected leaves immediately",
-      "Apply copper-based fungicide",
-      "Improve air circulation around plants",
-      "Avoid overhead watering",
-      "Monitor daily for spread"
+      "Apply fungicides (chlorothalonil, mancozeb) immediately",
+      "Remove infected plants completely",
+      "Improve air circulation around remaining plants",
+      "Avoid overhead irrigation",
+      "Monitor weather conditions and apply preventive treatments"
     ],
     preventiveMeasures: [
       "Plant resistant varieties",
-      "Ensure proper spacing",
-      "Water at soil level",
-      "Remove plant debris"
+      "Avoid overhead irrigation",
+      "Proper spacing between plants",
+      "Monitor weather conditions",
+      "Remove plant debris regularly"
     ],
-    symptoms: "Dark, water-soaked lesions on leaves and stems"
+    symptoms: "Dark, water-soaked lesions on leaves and stems, white fungal growth in humid conditions"
   };
 
   const getSeverityColor = (severity: string) => {
@@ -60,6 +61,8 @@ const Results = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+
 
   const getStatusIcon = (status: string) => {
     if (status === "Healthy") {
@@ -140,13 +143,25 @@ const Results = () => {
               {getStatusIcon(result.status)}
             </div>
             <CardTitle className="text-2xl text-gray-800">{result.disease}</CardTitle>
-            <div className="flex items-center justify-center space-x-4 mt-4">
-              <Badge className={getSeverityColor(result.severity)}>
-                {result.severity} Severity
-              </Badge>
-              <Badge variant="outline" className="border-green-300 text-green-700">
-                {result.confidence}% Confidence
-              </Badge>
+            
+            {/* Simplified Confidence Display */}
+            <div className="space-y-3 mt-4">
+              <div className="flex items-center justify-center space-x-4">
+                <Badge className={getSeverityColor(result.severity)}>
+                  {result.severity} Severity
+                </Badge>
+                <Badge variant="outline" className="border-green-300 text-green-700">
+                  {result.confidence}% Confidence
+                </Badge>
+              </div>
+              
+              {/* Confidence Bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                <div 
+                  className="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${result.confidence}%` }}
+                ></div>
+              </div>
             </div>
           </CardHeader>
         </Card>

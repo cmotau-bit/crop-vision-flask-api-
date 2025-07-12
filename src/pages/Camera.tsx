@@ -1,11 +1,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera as CameraIcon, ArrowLeft, Upload, RotateCcw, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, RotateCcw, CheckCircle, AlertTriangle, Loader2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { useCamera } from "@/hooks/use-camera";
 import { useStorage } from "@/hooks/use-storage";
 import aiModelService from "@/lib/ai-model";
 
@@ -14,25 +13,21 @@ const Camera = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [modelStatus, setModelStatus] = useState<string>('Loading...');
-
-  // Camera hook
-  const {
-    isStreaming,
-    isCapturing,
-    hasPermission,
-    error: cameraError,
-    capturedImage,
-    startCamera,
-    stopCamera,
-    captureImage,
-    uploadImage,
-    resetCamera,
-    videoRef,
-    canvasRef
-  } = useCamera();
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   // Storage hook
   const { saveScan, isInitialized: storageInitialized } = useStorage();
+
+  // Simple hash function to identify unique images
+  const hashCode = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+  };
 
   // Check model status on mount
   useEffect(() => {
@@ -57,12 +52,25 @@ const Camera = () => {
     const file = event.target.files?.[0];
     if (file) {
       try {
-        await uploadImage(file);
-        toast({
-          title: "Image uploaded",
-          description: "Image ready for analysis",
-        });
+        console.log('📁 Uploading image:', file.name, 'Size:', file.size, 'Type:', file.type);
+        
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          if (result) {
+            setCapturedImage(result);
+            console.log('✅ Image uploaded successfully');
+            toast({
+              title: "Image uploaded",
+              description: "Image ready for analysis",
+            });
+          }
+        };
+        reader.readAsDataURL(file);
+        
       } catch (error) {
+        console.error('❌ Upload failed:', error);
         toast({
           title: "Upload failed",
           description: "Failed to upload image",
@@ -72,31 +80,12 @@ const Camera = () => {
     }
   };
 
-  // Handle camera capture
-  const handleCameraCapture = async () => {
-    try {
-      const imageData = await captureImage();
-      if (imageData) {
-        toast({
-          title: "Photo captured",
-          description: "Image ready for analysis",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Capture failed",
-        description: "Failed to capture photo",
-        variant: "destructive",
-      });
-    }
-  };
-
   // Handle analysis
   const handleAnalyze = async () => {
     if (!capturedImage) {
       toast({
         title: "No image selected",
-        description: "Please capture or upload an image to analyze",
+        description: "Please upload an image to analyze",
         variant: "destructive",
       });
       return;
@@ -114,16 +103,36 @@ const Camera = () => {
     setIsAnalyzing(true);
     
     try {
+      console.log('🔄 Starting analysis for image...');
+      console.log('📊 Image data length:', capturedImage.length);
+      console.log('🆔 Image hash:', hashCode(capturedImage));
+      
       // Create image element for analysis
       const img = new Image();
       img.crossOrigin = 'anonymous';
       
       img.onload = async () => {
         try {
-          // Run AI prediction with error handling
+          console.log('🤖 Starting AI prediction at:', new Date().toISOString());
           let prediction;
           try {
             prediction = await aiModelService.predict(img);
+            
+            // Debug: Check if treatment info is available
+            console.log('🔍 Prediction result:', {
+              className: prediction.className,
+              confidence: prediction.confidence,
+              hasTreatment: !!prediction.treatment,
+              hasPrevention: !!prediction.prevention,
+              hasSymptoms: !!prediction.symptoms,
+              treatmentLength: prediction.treatment?.length || 0,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Check disease info status
+            const diseaseStatus = aiModelService.getDiseaseInfoStatus();
+            console.log('🔍 Disease info status:', diseaseStatus);
+            
           } catch (aiError) {
             console.warn('AI prediction failed, using fallback:', aiError);
             
@@ -206,19 +215,11 @@ const Camera = () => {
 
   // Handle retake
   const handleRetake = () => {
-    resetCamera();
+    setCapturedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
-
-  // Start camera on mount
-  useEffect(() => {
-    startCamera();
-    return () => {
-      stopCamera();
-    };
-  }, [startCamera, stopCamera]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
@@ -277,46 +278,29 @@ const Camera = () => {
           </CardContent>
         </Card>
 
-        {/* Camera Interface */}
+        {/* Image Upload Interface */}
         <Card className="bg-white/70 backdrop-blur-sm border-green-200 overflow-hidden">
           <CardContent className="p-0">
             {!capturedImage ? (
               <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center relative">
-                {/* Camera Stream */}
-                {isStreaming && (
-                  <video
-                    ref={videoRef}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                    muted
-                  />
-                )}
-                
-                {/* Camera Overlay */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20">
+                {/* Upload Overlay */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/10">
                   <div className="w-24 h-24 bg-green-100/80 rounded-full flex items-center justify-center mb-4">
-                    <CameraIcon className="h-12 w-12 text-green-600" />
+                    <ImageIcon className="h-12 w-12 text-green-600" />
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2 drop-shadow-lg">
-                    {isStreaming ? 'Camera Ready' : 'Take a Photo'}
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    Select Image from Gallery
                   </h3>
-                  <p className="text-sm text-white/90 text-center px-8 drop-shadow-lg">
-                    {isStreaming 
-                      ? 'Tap capture to take a photo' 
-                      : 'Capture a clear image of the affected crop area'
-                    }
+                  <p className="text-sm text-gray-600 text-center px-8">
+                    Choose an image from your gallery to analyze
                   </p>
                 </div>
-
-                {/* Hidden canvas for capture */}
-                <canvas ref={canvasRef} className="hidden" />
               </div>
             ) : (
               <div className="aspect-square relative">
                 <img
                   src={capturedImage}
-                  alt="Captured crop"
+                  alt="Uploaded crop"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 right-4">
@@ -327,7 +311,7 @@ const Camera = () => {
                     className="bg-white/80 backdrop-blur-sm hover:bg-white/90"
                   >
                     <RotateCcw className="h-4 w-4 mr-2" />
-                    Retake
+                    Change
                   </Button>
                 </div>
               </div>
@@ -335,26 +319,14 @@ const Camera = () => {
           </CardContent>
         </Card>
 
-        {/* Camera Error */}
-        {cameraError && (
-          <Card className="bg-red-50 border-red-200">
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <span className="text-sm text-red-700">{cameraError}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Instructions */}
         <Card className="bg-white/70 backdrop-blur-sm border-green-200">
           <CardContent className="p-6">
-            <h3 className="font-semibold text-gray-800 mb-3">Photography Tips</h3>
+            <h3 className="font-semibold text-gray-800 mb-3">Image Requirements</h3>
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Ensure good lighting conditions</span>
+                <span>Clear, well-lit image of the crop</span>
               </div>
               <div className="flex items-center space-x-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
@@ -362,11 +334,11 @@ const Camera = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Keep the camera steady</span>
+                <span>Good resolution (minimum 224x224 pixels)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Fill the frame with the crop</span>
+                <span>Supported formats: JPG, PNG, WebP</span>
               </div>
             </div>
           </CardContent>
@@ -376,41 +348,22 @@ const Camera = () => {
         <div className="space-y-4">
           {!capturedImage ? (
             <>
-              {/* Camera Capture Button */}
-              <Button
-                onClick={handleCameraCapture}
-                disabled={!isStreaming || isCapturing}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
-              >
-                {isCapturing ? (
-                  <>
-                    <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                    Capturing...
-                  </>
-                ) : (
-                  <>
-                    <CameraIcon className="mr-3 h-6 w-6" />
-                    Take Photo
-                  </>
-                )}
-              </Button>
-              
               {/* Gallery Upload */}
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleImageUpload}
                 className="hidden"
                 id="gallery-upload"
               />
-              <Button
-                onClick={() => document.getElementById('gallery-upload')?.click()}
-                variant="outline"
-                className="w-full border-green-300 text-green-700 hover:bg-green-50 py-6 text-lg rounded-xl font-semibold transition-all duration-300"
+              <label
+                htmlFor="gallery-upload"
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer"
               >
                 <Upload className="mr-3 h-6 w-6" />
-                Upload from Gallery
-              </Button>
+                Select Image from Gallery
+              </label>
             </>
           ) : (
             <Button

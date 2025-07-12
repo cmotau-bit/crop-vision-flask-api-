@@ -270,7 +270,7 @@ const History = () => {
                         {selectedScan.prediction.className.split('___')[1] || selectedScan.prediction.className}
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                                        <div className="flex justify-between">
                       <span className="text-gray-600">Confidence:</span>
                       <span className="font-medium">
                         {Math.round(selectedScan.prediction.confidence * 100)}%
