@@ -1,12 +1,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, RotateCcw, CheckCircle, AlertTriangle, Loader2, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Upload, RotateCcw, CheckCircle, AlertTriangle, Loader2, Image as ImageIcon, Camera as CameraIcon, X as CloseIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { useStorage } from "@/hooks/use-storage";
 import aiModelService from "@/lib/ai-model";
+import { useCamera } from "@/hooks/use-camera";
 
 const Camera = () => {
   const navigate = useNavigate();
@@ -14,6 +15,20 @@ const Camera = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [modelStatus, setModelStatus] = useState<string>('Loading...');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const {
+    isStreaming,
+    isCapturing,
+    hasPermission,
+    error: cameraError,
+    capturedImage: cameraImage,
+    startCamera,
+    stopCamera,
+    captureImage,
+    resetCamera,
+    videoRef,
+    canvasRef
+  } = useCamera();
 
   // Storage hook
   const { saveScan, isInitialized: storageInitialized } = useStorage();
@@ -221,8 +236,49 @@ const Camera = () => {
     }
   };
 
+  // Handle open camera modal
+  const handleOpenCamera = async () => {
+    setShowCamera(true);
+    await startCamera();
+  };
+
+  // Handle close camera modal
+  const handleCloseCamera = () => {
+    setShowCamera(false);
+    stopCamera();
+    resetCamera();
+  };
+
+  // Handle capture from camera
+  const handleCapture = async () => {
+    const img = await captureImage();
+    if (img) {
+      setCapturedImage(img);
+      handleCloseCamera();
+      toast({ title: "Photo captured", description: "Image ready for analysis" });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      {/* Camera Modal */}
+      {showCamera && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-xs flex flex-col items-center relative">
+            <button onClick={handleCloseCamera} className="absolute top-2 right-2 text-gray-500 hover:text-red-600"><CloseIcon className="w-6 h-6" /></button>
+            <div className="w-full flex flex-col items-center">
+              <video ref={videoRef} autoPlay playsInline className="rounded-lg w-full aspect-video bg-black" style={{ maxHeight: 320 }} />
+              <canvas ref={canvasRef} className="hidden" />
+              {cameraError && <div className="text-red-600 text-sm mt-2">{cameraError}</div>}
+              {!hasPermission && !cameraError && <div className="text-gray-600 text-sm mt-2">Requesting camera access...</div>}
+              <Button onClick={handleCapture} className="w-full mt-4" disabled={!isStreaming || isCapturing}>
+                {isCapturing ? "Capturing..." : "Capture Photo"}
+              </Button>
+              <Button onClick={handleCloseCamera} variant="secondary" className="w-full mt-2">Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-green-100 sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-4">
@@ -359,11 +415,19 @@ const Camera = () => {
               />
               <label
                 htmlFor="gallery-upload"
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer"
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer mb-3"
               >
                 <Upload className="mr-3 h-6 w-6" />
                 Select Image from Gallery
               </label>
+              {/* Take Photo Button */}
+              <Button
+                onClick={handleOpenCamera}
+                className="w-full bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+              >
+                <CameraIcon className="mr-3 h-6 w-6" />
+                Take Photo
+              </Button>
             </>
           ) : (
             <Button
