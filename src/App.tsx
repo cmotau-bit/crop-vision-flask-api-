@@ -9,6 +9,8 @@ import Camera from "./pages/Camera";
 import Results from "./pages/Results";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
+import Landing from "./pages/Landing";
+import SignIn from "./pages/SignIn";
 
 const queryClient = new QueryClient();
 
@@ -19,7 +21,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/home" element={<Index />} />
           <Route path="/camera" element={<Camera />} />
           <Route path="/results" element={<Results />} />
           <Route path="/history" element={<History />} />
