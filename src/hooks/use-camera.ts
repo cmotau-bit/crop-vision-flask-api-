@@ -16,6 +16,7 @@ export interface CameraActions {
   resetCamera: () => void;
   videoRef: React.RefObject<HTMLVideoElement>;
   canvasRef: React.RefObject<HTMLCanvasElement>;
+  tapToFocus: (x: number, y: number) => Promise<void>;
 }
 
 export const useCamera = (): CameraState & CameraActions => {
@@ -146,6 +147,24 @@ export const useCamera = (): CameraState & CameraActions => {
     setIsCapturing(false);
   }, []);
 
+  // Tap-to-focus support (where available)
+  const tapToFocus = useCallback(async (x: number, y: number) => {
+    if (!videoRef.current || !streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    // @ts-expect-error: ImageCapture is not always in TS lib, browser support varies
+    if (window.ImageCapture && track) {
+      // @ts-expect-error: ImageCapture constructor is not always in TS lib
+      const imageCapture = new window.ImageCapture(track);
+      if (imageCapture && imageCapture.focusMode === 'single-shot') {
+        try {
+          await imageCapture.setFocusPoint({ x, y });
+        } catch (e) {
+          console.warn('Tap-to-focus not supported:', e);
+        }
+      }
+    }
+  }, []);
+
   return {
     // State
     isStreaming,
@@ -160,6 +179,7 @@ export const useCamera = (): CameraState & CameraActions => {
     captureImage,
     uploadImage,
     resetCamera,
+    tapToFocus,
     
     // Refs (for component use)
     videoRef,

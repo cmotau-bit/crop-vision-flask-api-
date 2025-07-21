@@ -13,6 +13,7 @@ app.use(bodyParser.json());
 
 // In-memory user store (replace with DB later)
 const users = [];
+const resetTokens = {};
 
 // Register endpoint
 app.post('/api/auth/register', async (req, res) => {
@@ -49,6 +50,39 @@ app.post('/api/auth/login', async (req, res) => {
   }
   const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token });
+});
+
+// Request password reset
+app.post('/api/auth/request-reset', (req, res) => {
+  const { email } = req.body;
+  const user = users.find(u => u.email === email);
+  if (!user) {
+    return res.status(404).json({ message: 'No account found with that email.' });
+  }
+  // Generate a simple reset token (for demo only)
+  const token = Math.random().toString(36).substring(2, 10);
+  resetTokens[email] = token;
+  // Simulate sending email
+  console.log(`Password reset link for ${email}: http://localhost:4000/reset?email=${encodeURIComponent(email)}&token=${token}`);
+  res.json({ message: 'Password reset link sent (check server console for demo).' });
+});
+
+// Reset password
+app.post('/api/auth/reset', (req, res) => {
+  const { email, token, newPassword } = req.body;
+  if (!resetTokens[email] || resetTokens[email] !== token) {
+    return res.status(400).json({ message: 'Invalid or expired reset token.' });
+  }
+  const user = users.find(u => u.email === email);
+  if (!user) {
+    return res.status(404).json({ message: 'No account found with that email.' });
+  }
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+  }
+  user.password = bcrypt.hashSync(newPassword, 10);
+  delete resetTokens[email];
+  res.json({ message: 'Password reset successful.' });
 });
 
 // Health check

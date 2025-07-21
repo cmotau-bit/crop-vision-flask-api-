@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
+import * as ort from 'onnxruntime-web';
 
 // Initialize TensorFlow.js with fallback backends
 const initializeTensorFlow = async () => {
@@ -276,6 +277,60 @@ const MODEL_CONFIG: ModelConfig = {
     "Tomato___Tomato_Yellow_Leaf_Curl_Virus"
   ]
 };
+
+let onnxSession: ort.InferenceSession | null = null;
+let onnxModelLoaded = false;
+
+export async function loadOnnxModel() {
+  if (onnxSession) return onnxSession;
+  try {
+    onnxSession = await ort.InferenceSession.create('/models/crop_disease_model.onnx');
+    onnxModelLoaded = true;
+    console.log('✅ ONNX model loaded');
+    return onnxSession;
+  } catch (e) {
+    console.warn('⚠️ Failed to load ONNX model:', e);
+    onnxModelLoaded = false;
+    return null;
+  }
+}
+
+export function isOnnxModelLoaded() {
+  return onnxModelLoaded;
+}
+
+export async function predictWithOnnx(imageTensor: tf.Tensor3D): Promise<DiseasePrediction | null> {
+  if (!onnxSession) return null;
+  // Preprocess: convert tf.Tensor to Float32Array and shape [1, 224, 224, 3] -> [1, 3, 224, 224]
+  const input = tf.tidy(() => {
+    let t = imageTensor;
+    if (t.shape.length === 3) t = t.expandDims(0);
+    // [1, 224, 224, 3] -> [1, 3, 224, 224]
+    t = t.transpose([0, 3, 1, 2]);
+    return t;
+  });
+  const inputData = input.dataSync() as Float32Array;
+  const inputTensor = new ort.Tensor('float32', inputData, [1, 3, 224, 224]);
+  input.dispose();
+  const feeds: Record<string, ort.Tensor> = {};
+  feeds[onnxSession.inputNames[0]] = inputTensor;
+  const results = await onnxSession.run(feeds);
+  const output = results[onnxSession.outputNames[0]].data as Float32Array;
+  const classIndex = output.indexOf(Math.max(...output));
+  const confidence = output[classIndex];
+  // Map to class name
+  const className = MODEL_CONFIG.classNames[classIndex] || `Class ${classIndex}`;
+  // Get disease info
+  const diseaseInfo = DISEASE_INFO[className] || {};
+  return {
+    classIndex,
+    className,
+    confidence,
+    symptoms: diseaseInfo.symptoms || '',
+    treatment: diseaseInfo.treatment || '',
+    prevention: diseaseInfo.prevention || ''
+  };
+}
 
 class AIModelService {
   private model: tf.LayersModel | null = null;
@@ -847,3 +902,34 @@ class AIModelService {
 // Export singleton instance
 export const aiModelService = new AIModelService();
 export default aiModelService; 
+
+// Plant/leaf pre-check: green pixel ratio
+export async function isLikelyPlantImage(imageDataUrl: string, greenThreshold = 0.18): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(false);
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, img.width, img.height).data;
+      let greenPixels = 0;
+      let totalPixels = img.width * img.height;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // Heuristic: green is dominant and not too dark/bright
+        if (g > 80 && g > r + 15 && g > b + 15) {
+          greenPixels++;
+        }
+      }
+      resolve(greenPixels / totalPixels > greenThreshold);
+    };
+    img.onerror = () => resolve(false);
+    img.src = imageDataUrl;
+  });
+} 

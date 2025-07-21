@@ -109,6 +109,9 @@ const SignIn: React.FC = () => {
               </button>
             </span>
           </div>
+          <div className="text-center w-full mt-2">
+            <a href="/privacy" className="text-xs text-gray-500 underline hover:text-green-700">Privacy Policy</a>
+          </div>
         </CardContent>
       </Card>
     </div>

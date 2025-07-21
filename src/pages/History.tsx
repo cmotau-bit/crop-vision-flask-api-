@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useStorage } from "@/hooks/use-storage";
 import { ScanResult } from "@/hooks/use-storage";
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const History = () => {
   const navigate = useNavigate();
@@ -74,6 +77,26 @@ const History = () => {
     setSelectedScan(null);
   };
 
+  // Summary stats
+  const totalScans = scanHistory.length;
+  const healthyScans = scanHistory.filter(scan => scan.prediction.className.includes('healthy')).length;
+  const diseaseScans = totalScans - healthyScans;
+  const classCounts: Record<string, number> = {};
+  scanHistory.forEach(scan => {
+    const label = scan.prediction.className.split('___')[1] || scan.prediction.className;
+    classCounts[label] = (classCounts[label] || 0) + 1;
+  });
+  const chartData = {
+    labels: Object.keys(classCounts),
+    datasets: [
+      {
+        label: 'Scans',
+        data: Object.values(classCounts),
+        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+      },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
       {/* Header */}
@@ -90,12 +113,56 @@ const History = () => {
               Back
             </Button>
             <h1 className="text-xl font-bold text-green-800">Scan History</h1>
-            <div className="w-16"></div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/home")}
+              className="text-green-700 border-green-300 hover:bg-green-50"
+            >
+              Home
+            </Button>
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+        {/* Summary Card */}
+        {!isLoading && scanHistory.length > 0 && (
+          <Card className="bg-white/90 border-green-200">
+            <CardHeader>
+              <CardTitle className="text-lg">Scan Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-green-700 font-semibold">Total Scans:</span>
+                <span>{totalScans}</span>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-green-700">Healthy:</span>
+                <span>{healthyScans}</span>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-red-700">Disease:</span>
+                <span>{diseaseScans}</span>
+              </div>
+              {/* Simple Bar Chart */}
+              {Object.keys(classCounts).length > 1 && (
+                <div className="mt-4">
+                  <Bar
+                    data={chartData}
+                    options={{
+                      plugins: { legend: { display: false } },
+                      scales: { x: { ticks: { color: '#047857' } }, y: { beginAtZero: true } },
+                      responsive: true,
+                      maintainAspectRatio: false,
+                    }}
+                    height={180}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {/* Error Display */}
         {error && (
           <Card className="bg-red-50 border-red-200">

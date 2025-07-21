@@ -41,6 +41,7 @@ const STATIC_CACHE_FILES = [
 // Model files to cache
 const MODEL_FILES = [
   '/models/crop_disease_model.tflite',
+  '/models/crop_disease_model.onnx',
   '/models/model_metadata_offline.json',
   '/models/disease_info_complete.json'
 ];
@@ -109,6 +110,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Skip unsupported schemes (chrome-extension, data:, etc.)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    console.log('⚠️ Skipping unsupported scheme:', url.protocol);
+    return;
+  }
+  
   // Handle different types of requests
   if (isStaticFile(url.pathname)) {
     event.respondWith(handleStaticFile(request));
@@ -124,13 +131,25 @@ self.addEventListener('fetch', (event) => {
 // Handle static file requests
 async function handleStaticFile(request) {
   try {
+    // Check if request scheme is supported for caching
+    const url = new URL(request.url);
+    const isCacheable = url.protocol === 'http:' || url.protocol === 'https:';
+    
     // Try network first, fallback to cache
     const networkResponse = await fetch(request);
     
-    if (networkResponse.ok) {
-      // Cache the response for future offline use
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
+    if (networkResponse.ok && isCacheable) {
+      // Cache the response for future offline use (only for http/https)
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(request, networkResponse.clone());
+      } catch (cacheError) {
+        console.warn('⚠️ Failed to cache request:', cacheError);
+        // Continue without caching
+      }
+      return networkResponse;
+    } else if (networkResponse.ok) {
+      // Return response without caching for unsupported schemes
       return networkResponse;
     }
   } catch (error) {
@@ -150,6 +169,10 @@ async function handleStaticFile(request) {
 // Handle model file requests
 async function handleModelFile(request) {
   try {
+    // Check if request scheme is supported for caching
+    const url = new URL(request.url);
+    const isCacheable = url.protocol === 'http:' || url.protocol === 'https:';
+    
     // Try cache first for model files (they don't change often)
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
@@ -158,10 +181,18 @@ async function handleModelFile(request) {
     
     // If not in cache, try network
     const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      // Cache the model file
-      const cache = await caches.open(MODEL_CACHE_NAME);
-      cache.put(request, networkResponse.clone());
+    if (networkResponse.ok && isCacheable) {
+      // Cache the model file (only for http/https)
+      try {
+        const cache = await caches.open(MODEL_CACHE_NAME);
+        await cache.put(request, networkResponse.clone());
+      } catch (cacheError) {
+        console.warn('⚠️ Failed to cache model file:', cacheError);
+        // Continue without caching
+      }
+      return networkResponse;
+    } else if (networkResponse.ok) {
+      // Return response without caching for unsupported schemes
       return networkResponse;
     }
   } catch (error) {
@@ -178,13 +209,25 @@ async function handleModelFile(request) {
 // Handle API requests
 async function handleApiRequest(request) {
   try {
+    // Check if request scheme is supported for caching
+    const url = new URL(request.url);
+    const isCacheable = url.protocol === 'http:' || url.protocol === 'https:';
+    
     // Try network first
     const networkResponse = await fetch(request);
     
-    if (networkResponse.ok) {
-      // Cache successful API responses
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
+    if (networkResponse.ok && isCacheable) {
+      // Cache successful API responses (only for http/https)
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(request, networkResponse.clone());
+      } catch (cacheError) {
+        console.warn('⚠️ Failed to cache API response:', cacheError);
+        // Continue without caching
+      }
+      return networkResponse;
+    } else if (networkResponse.ok) {
+      // Return response without caching for unsupported schemes
       return networkResponse;
     }
   } catch (error) {
@@ -328,6 +371,7 @@ function isModelFile(pathname) {
   return MODEL_FILES.some(file => pathname === file) ||
          pathname.startsWith('/models/') ||
          pathname.endsWith('.tflite') ||
+         pathname.endsWith('.onnx') ||
          pathname.endsWith('.json');
 }
 

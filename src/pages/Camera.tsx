@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { useStorage } from "@/hooks/use-storage";
-import aiModelService from "@/lib/ai-model";
+import aiModelService, { loadOnnxModel, isOnnxModelLoaded, predictWithOnnx } from "@/lib/ai-model";
 import { useCamera } from "@/hooks/use-camera";
+import { isLikelyPlantImage } from "@/lib/ai-model";
 
 const Camera = () => {
   const navigate = useNavigate();
@@ -27,7 +28,8 @@ const Camera = () => {
     captureImage,
     resetCamera,
     videoRef,
-    canvasRef
+    canvasRef,
+    tapToFocus
   } = useCamera();
 
   // Storage hook
@@ -46,10 +48,17 @@ const Camera = () => {
 
   // Check model status on mount
   useEffect(() => {
-    const checkModelStatus = () => {
+    const checkModelStatus = async () => {
+      // Try to load ONNX model first
+      await loadOnnxModel();
+      
       const status = aiModelService.getModelStatus();
-      if (status.isLoaded) {
-        setModelStatus('Ready');
+      const onnxReady = isOnnxModelLoaded();
+      
+      if (onnxReady) {
+        setModelStatus('Ready (ONNX)');
+      } else if (status.isLoaded) {
+        setModelStatus('Ready (TensorFlow)');
       } else if (status.isLoading) {
         setModelStatus('Loading AI Model...');
       } else {
@@ -60,6 +69,18 @@ const Camera = () => {
     checkModelStatus();
     const interval = setInterval(checkModelStatus, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Check camera support on mount
+  useEffect(() => {
+    const checkCameraSupport = () => {
+      const isSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      if (!isSupported) {
+        console.warn('Camera not supported on this device/browser');
+      }
+    };
+    
+    checkCameraSupport();
   }, []);
 
   // Handle file upload
@@ -106,7 +127,21 @@ const Camera = () => {
       return;
     }
 
-    if (!aiModelService.getModelStatus().isLoaded) {
+    // Plant/leaf pre-check
+    const isPlant = await isLikelyPlantImage(capturedImage);
+    if (!isPlant) {
+      toast({
+        title: "No plant/leaf detected",
+        description: "Please ensure the image clearly shows a leaf or plant. Try retaking the photo with better focus and lighting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const tfStatus = aiModelService.getModelStatus();
+    const onnxReady = isOnnxModelLoaded();
+    
+    if (!onnxReady && !tfStatus.isLoaded) {
       toast({
         title: "AI Model not ready",
         description: "Please wait for the AI model to load",
@@ -130,28 +165,35 @@ const Camera = () => {
         try {
           console.log('🤖 Starting AI prediction at:', new Date().toISOString());
           let prediction;
-          try {
-            prediction = await aiModelService.predict(img);
-            
-            // Debug: Check if treatment info is available
-            console.log('🔍 Prediction result:', {
-              className: prediction.className,
-              confidence: prediction.confidence,
-              hasTreatment: !!prediction.treatment,
-              hasPrevention: !!prediction.prevention,
-              hasSymptoms: !!prediction.symptoms,
-              treatmentLength: prediction.treatment?.length || 0,
-              timestamp: new Date().toISOString()
-            });
-            
-            // Check disease info status
-            const diseaseStatus = aiModelService.getDiseaseInfoStatus();
-            console.log('🔍 Disease info status:', diseaseStatus);
-            
-          } catch (aiError) {
-            console.warn('AI prediction failed, using fallback:', aiError);
-            
-            // Fallback prediction for demo purposes
+          
+          // Try ONNX model first, fallback to TensorFlow.js
+          if (isOnnxModelLoaded()) {
+            try {
+              console.log('🚀 Using ONNX model for prediction');
+              const tensor = await aiModelService.preprocessImage(img);
+              prediction = await predictWithOnnx(tensor);
+              tensor.dispose(); // Clean up tensor
+              
+              console.log('✅ ONNX prediction successful');
+            } catch (onnxError) {
+              console.warn('ONNX prediction failed, falling back to TensorFlow:', onnxError);
+            }
+          }
+          
+          // Fallback to TensorFlow.js if ONNX failed or not available
+          if (!prediction) {
+            try {
+              console.log('🔄 Using TensorFlow.js model for prediction');
+              prediction = await aiModelService.predict(img);
+              console.log('✅ TensorFlow prediction successful');
+            } catch (tfError) {
+              console.warn('TensorFlow prediction failed, using fallback:', tfError);
+            }
+          }
+          
+          // Final fallback if both models failed
+          if (!prediction) {
+            console.warn('All AI models failed, using demo prediction');
             prediction = {
               classIndex: 26, // Tomato___healthy
               className: "Tomato___healthy",
@@ -167,6 +209,21 @@ const Camera = () => {
               variant: "default",
             });
           }
+          
+          // Debug: Check if treatment info is available
+          console.log('🔍 Prediction result:', {
+            className: prediction.className,
+            confidence: prediction.confidence,
+            hasTreatment: !!prediction.treatment,
+            hasPrevention: !!prediction.prevention,
+            hasSymptoms: !!prediction.symptoms,
+            treatmentLength: prediction.treatment?.length || 0,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Check disease info status
+          const diseaseStatus = aiModelService.getDiseaseInfoStatus();
+          console.log('🔍 Disease info status:', diseaseStatus);
           
           // Save to storage if available
           if (storageInitialized) {
@@ -238,8 +295,30 @@ const Camera = () => {
 
   // Handle open camera modal
   const handleOpenCamera = async () => {
-    setShowCamera(true);
-    await startCamera();
+    try {
+      setShowCamera(true);
+      await startCamera();
+      
+      // Show helpful message if camera takes time to load
+      setTimeout(() => {
+        if (!isStreaming && !cameraError) {
+          toast({
+            title: "Camera Loading",
+            description: "Please allow camera access when prompted",
+            variant: "default",
+          });
+        }
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Failed to open camera:', error);
+      toast({
+        title: "Camera Error",
+        description: "Failed to access camera. Please check permissions and try again.",
+        variant: "destructive",
+      });
+      setShowCamera(false);
+    }
   };
 
   // Handle close camera modal
@@ -261,20 +340,110 @@ const Camera = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      {/* Progress Indicator */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="flex flex-col items-center">
+            <Loader2 className="h-12 w-12 text-green-600 animate-spin mb-4" />
+            <span className="text-lg font-semibold text-green-800">Analyzing image...</span>
+          </div>
+        </div>
+      )}
       {/* Camera Modal */}
       {showCamera && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-xs flex flex-col items-center relative">
-            <button onClick={handleCloseCamera} className="absolute top-2 right-2 text-gray-500 hover:text-red-600"><CloseIcon className="w-6 h-6" /></button>
+          <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm flex flex-col items-center relative">
+            {/* Close Button */}
+            <button 
+              onClick={handleCloseCamera} 
+              className="absolute top-3 right-3 text-gray-500 hover:text-red-600 z-10"
+              aria-label="Close camera"
+            >
+              <CloseIcon className="w-6 h-6" />
+            </button>
+            
             <div className="w-full flex flex-col items-center">
-              <video ref={videoRef} autoPlay playsInline className="rounded-lg w-full aspect-video bg-black" style={{ maxHeight: 320 }} />
+              {/* Camera Preview */}
+              <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden mb-4">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                  onClick={async (e) => {
+                    if (!videoRef.current) return;
+                    const rect = videoRef.current.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / rect.width;
+                    const y = (e.clientY - rect.top) / rect.height;
+                    await tapToFocus(x, y);
+                    toast({ 
+                      title: "Focus requested", 
+                      description: "Tap-to-focus triggered (if supported by your device)." 
+                    });
+                  }}
+                />
+                
+                {/* Loading/Error States */}
+                {!isStreaming && !cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <div className="text-center text-white">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                      <p className="text-sm">Requesting camera access...</p>
+                    </div>
+                  </div>
+                )}
+                
+                {cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <div className="text-center text-white p-4">
+                      <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+                      <p className="text-sm">{cameraError}</p>
+                      <Button 
+                        onClick={handleOpenCamera} 
+                        size="sm" 
+                        className="mt-2"
+                        variant="secondary"
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <canvas ref={canvasRef} className="hidden" />
-              {cameraError && <div className="text-red-600 text-sm mt-2">{cameraError}</div>}
-              {!hasPermission && !cameraError && <div className="text-gray-600 text-sm mt-2">Requesting camera access...</div>}
-              <Button onClick={handleCapture} className="w-full mt-4" disabled={!isStreaming || isCapturing}>
-                {isCapturing ? "Capturing..." : "Capture Photo"}
-              </Button>
-              <Button onClick={handleCloseCamera} variant="secondary" className="w-full mt-2">Cancel</Button>
+              
+              {/* Camera Controls */}
+              <div className="w-full space-y-3">
+                <Button 
+                  onClick={handleCapture} 
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3" 
+                  disabled={!isStreaming || isCapturing}
+                >
+                  {isCapturing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Capturing...
+                    </>
+                  ) : (
+                    "Capture Photo"
+                  )}
+                </Button>
+                
+                <Button 
+                  onClick={handleCloseCamera} 
+                  variant="outline" 
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+              </div>
+              
+              {/* Camera Tips */}
+              <div className="mt-4 text-center text-xs text-gray-500">
+                <p>Tap the preview to focus • Ensure good lighting</p>
+              </div>
             </div>
           </div>
         </div>
@@ -293,7 +462,14 @@ const Camera = () => {
               Back
             </Button>
             <h1 className="text-xl font-bold text-green-800">Crop Analysis</h1>
-            <div className="w-16"></div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/home")}
+              className="text-green-700 border-green-300 hover:bg-green-50"
+            >
+              Home
+            </Button>
           </div>
         </div>
       </div>
@@ -351,6 +527,16 @@ const Camera = () => {
                     Choose an image from your gallery to analyze
                   </p>
                 </div>
+                
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  id="image-upload-overlay"
+                />
               </div>
             ) : (
               <div className="aspect-square relative">
@@ -404,22 +590,14 @@ const Camera = () => {
         <div className="space-y-4">
           {!capturedImage ? (
             <>
-              {/* Gallery Upload */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="gallery-upload"
-              />
-              <label
-                htmlFor="gallery-upload"
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer mb-3"
+              {/* Gallery Upload Button */}
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center mb-3"
               >
                 <Upload className="mr-3 h-6 w-6" />
                 Select Image from Gallery
-              </label>
+              </Button>
               {/* Take Photo Button */}
               <Button
                 onClick={handleOpenCamera}

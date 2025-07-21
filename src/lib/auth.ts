@@ -1,10 +1,12 @@
+import deploymentConfig from "../../deploy.config.js";
+
 export interface AuthResponse {
   success: boolean;
   message?: string;
   token?: string;
 }
 
-const API_BASE = "http://localhost:4000/api/auth";
+const API_BASE = deploymentConfig.getApiUrl() + "/api/auth";
 
 export async function signIn(email: string, password: string): Promise<AuthResponse> {
   if (!validateEmail(email)) return { success: false, message: "Invalid email format" };
