@@ -102,18 +102,18 @@ const Index = () => {
             <CardContent className="p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <BarChart2 className="h-5 w-5 text-green-600" />
-                <span className="font-semibold text-gray-800">Comprehensive Insights</span>
+                <span className="font-semibold text-gray-800">Scan Analytics</span>
               </div>
-              <p className="text-gray-600 text-sm">Access detailed disease information, treatment plans, prevention tips, and scan analytics.</p>
+              <p className="text-gray-600 text-sm">Track your crop health over time with detailed analytics and visualizations. Monitor trends and make informed decisions for your farm.</p>
             </CardContent>
           </Card>
           <Card className="bg-white/90">
             <CardContent className="p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-green-600" />
-                <span className="font-semibold text-gray-800">Community & Support</span>
+                <BarChart2 className="h-5 w-5 text-green-600" />
+                <span className="font-semibold text-gray-800">Comprehensive Insights</span>
               </div>
-              <p className="text-gray-600 text-sm">Connect with experts and a global community of farmers for advice and knowledge sharing.</p>
+              <p className="text-gray-600 text-sm">Access detailed disease information, treatment plans, prevention tips, and scan analytics.</p>
             </CardContent>
           </Card>
         </div>
