@@ -118,6 +118,22 @@ const Index = () => {
           </Card>
         </div>
       </section>
+
+      {/* Global Impact Card */}
+      <div className="max-w-2xl mx-auto px-4 pb-8">
+        <div className="rounded-xl bg-green-50 p-8 flex flex-col items-center justify-center shadow" style={{ background: 'linear-gradient(90deg, #e6f9ee 0%, #f0fdf4 100%)' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-12 w-12 text-green-700 mb-2">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+            <path stroke="currentColor" strokeWidth="2" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" />
+          </svg>
+          <div className="text-2xl font-semibold text-green-800 mb-1">Global Impact</div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="w-full flex flex-col items-center pb-6">
+        <div className="text-gray-500 text-sm mt-4">© 2025 CropCare AI — Empowering Farmers, Feeding the World</div>
+      </footer>
     </div>
   );
 };

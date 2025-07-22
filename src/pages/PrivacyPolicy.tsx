@@ -27,7 +27,7 @@ const PrivacyPolicy = () => {
           <p>
             For questions or concerns about your privacy, contact us at <a href="mailto:support@cropcareai.com" className="text-green-700 underline">support@cropcareai.com</a>.
           </p>
-          <Button onClick={() => navigate("/")} className="w-full mt-6">Back to Home</Button>
+          <Button onClick={() => navigate("/home")} className="w-full mt-6">Back to Home</Button>
         </CardContent>
       </Card>
     </div>

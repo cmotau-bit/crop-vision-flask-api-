@@ -17,7 +17,7 @@ const Community = () => {
             Here you’ll soon be able to ask questions, share results, and connect with other users and experts.
           </p>
           <div className="text-gray-500 text-sm mb-8">Community features coming soon...</div>
-          <Button onClick={() => navigate("/")} className="w-full">Back to Home</Button>
+          <Button onClick={() => navigate("/home")} className="w-full">Back to Home</Button>
         </CardContent>
       </Card>
     </div>

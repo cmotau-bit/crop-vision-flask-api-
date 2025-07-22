@@ -106,21 +106,13 @@ const History = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/home")}
               className="text-green-700 hover:bg-green-100"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
               Back
             </Button>
             <h1 className="text-xl font-bold text-green-800">Scan History</h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/home")}
-              className="text-green-700 border-green-300 hover:bg-green-50"
-            >
-              Home
-            </Button>
           </div>
         </div>
       </div>

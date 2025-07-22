@@ -154,21 +154,13 @@ const Results = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/home")}
               className="text-green-700 hover:bg-green-100"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
               Back
             </Button>
             <h1 className="text-xl font-bold text-green-800">Analysis Results</h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/home")}
-              className="text-green-700 border-green-300 hover:bg-green-50"
-            >
-              Home
-            </Button>
           </div>
         </div>
       </div>
@@ -349,16 +341,6 @@ const Results = () => {
             <Camera className="mr-3 h-6 w-6" />
             Scan Another Crop
           </Button>
-          
-          {prediction && (
-            <Button
-              onClick={handleSaveToHistory}
-              variant="outline"
-              className="w-full border-green-300 text-green-700 hover:bg-green-50 py-6 text-lg rounded-xl font-semibold transition-all duration-300"
-            >
-              Save to History
-            </Button>
-          )}
         </div>
         </>}
       </div>

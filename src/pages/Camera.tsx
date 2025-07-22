@@ -455,26 +455,27 @@ const Camera = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/home")}
               className="text-green-700 hover:bg-green-100"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
               Back
             </Button>
             <h1 className="text-xl font-bold text-green-800">Crop Analysis</h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/home")}
-              className="text-green-700 border-green-300 hover:bg-green-50"
-            >
-              Home
-            </Button>
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+        {/* Hidden file input always present */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"
+          id="image-upload-overlay"
+        />
         {/* Model Status */}
         <Card className="bg-white/70 backdrop-blur-sm border-green-200">
           <CardContent className="p-4">
@@ -506,82 +507,6 @@ const Camera = () => {
                   </span>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Image Upload Interface */}
-        <Card className="bg-white/70 backdrop-blur-sm border-green-200 overflow-hidden">
-          <CardContent className="p-0">
-            {!capturedImage ? (
-              <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center relative">
-                {/* Upload Overlay */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/10">
-                  <div className="w-24 h-24 bg-green-100/80 rounded-full flex items-center justify-center mb-4">
-                    <ImageIcon className="h-12 w-12 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Select Image from Gallery
-                  </h3>
-                  <p className="text-sm text-gray-600 text-center px-8">
-                    Choose an image from your gallery to analyze
-                  </p>
-                </div>
-                
-                {/* Hidden file input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  id="image-upload-overlay"
-                />
-              </div>
-            ) : (
-              <div className="aspect-square relative">
-                <img
-                  src={capturedImage}
-                  alt="Uploaded crop"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-4 right-4">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleRetake}
-                    className="bg-white/80 backdrop-blur-sm hover:bg-white/90"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Change
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Instructions */}
-        <Card className="bg-white/70 backdrop-blur-sm border-green-200">
-          <CardContent className="p-6">
-            <h3 className="font-semibold text-gray-800 mb-3">Image Requirements</h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Clear, well-lit image of the crop</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Focus on the affected area</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Good resolution (minimum 224x224 pixels)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Supported formats: JPG, PNG, WebP</span>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -627,6 +552,57 @@ const Camera = () => {
             </Button>
           )}
         </div>
+
+        {/* Image Upload Interface */}
+        <Card className="bg-white/70 backdrop-blur-sm border-green-200 overflow-hidden">
+          <CardContent className="p-0">
+            {capturedImage ? (
+              <div className="aspect-square relative">
+                <img
+                  src={capturedImage}
+                  alt="Uploaded crop"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleRetake}
+                    className="bg-white/80 backdrop-blur-sm hover:bg-white/90"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Change
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        {/* Instructions */}
+        <Card className="bg-white/70 backdrop-blur-sm border-green-200">
+          <CardContent className="p-6">
+            <h3 className="font-semibold text-gray-800 mb-3">Image Requirements</h3>
+            <div className="space-y-2 text-sm text-gray-600">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span>Clear, well-lit image of the crop</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span>Focus on the affected area</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span>Good resolution (minimum 224x224 pixels)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span>Supported formats: JPG, PNG, WebP</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

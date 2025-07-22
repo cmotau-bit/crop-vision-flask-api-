@@ -145,7 +145,7 @@ const DeploymentStatus = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/home")}
               className="text-green-700 hover:bg-green-100 mr-4"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />

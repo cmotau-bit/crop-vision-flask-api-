@@ -10,7 +10,7 @@ const Landing: React.FC = () => {
     setFadeIn(true);
     const timer = setTimeout(() => {
       navigate("/signin");
-    }, 30000); // 30 seconds
+    }, 5000); // 5 seconds
     return () => clearTimeout(timer);
   }, [navigate]);
 
